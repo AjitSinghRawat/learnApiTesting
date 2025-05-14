@@ -1,5 +1,9 @@
 package apiTests;
 
+import apiEngine.model.requests.AddBooksRequest;
+import apiEngine.model.requests.AuthRequest;
+import apiEngine.model.requests.ISBN;
+import apiEngine.model.requests.RemoveBookRequest;
 import io.restassured.RestAssured;
 import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
@@ -7,6 +11,7 @@ import io.restassured.specification.RequestSpecification;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -16,36 +21,40 @@ public class E2E_API_Tests {
     public static final String PASSWORD = "Samridhi@4891";
     public static final String USER_ID = "88517c0a-40c8-4973-8b39-702968d51112";
 
-/*    public static final String USER_NAME_2 = "Digamber";
+/*  public static final String USER_NAME_2 = "Digamber";
     public static final String PASWORD_2 = "Digamber@2891";
-    public static final String USER_ID_2 = "c90b5148-c042-4dd4-b523-349ba25e835f";*/
+    public static final String USER_ID_2 = "c90b5148-c042-4dd4-b523-349ba25e835f";
+    https://bookstore.toolsqa.com/swagger/#/
+ */
 
     private static String isbnNumber;
     private static String jsonString;
     private static String token;
-    private static String bookId;
-
 
     @Test(description = "Validate that a user is authorized.", priority = 0)
     public void verifyUserIsAuthorized() {
+        AuthRequest authRequest = new AuthRequest(USER_NAME, PASSWORD);
         RestAssured.baseURI = BASE_URL;
         RequestSpecification request = RestAssured.given();
-        request.header("content-type", "application/json");
-        Response response = request.body("{ \"userName\":\"" + USER_NAME + "\", \"password\":\"" + PASSWORD + "\"}")
+        Response response = request
+                .header("content-type", "application/json")
+                .body(authRequest)
                 .post("/Account/v1/Authorized");
         Assert.assertEquals(response.getStatusCode(), 200);
     }
 
     @Test(priority = 1)
     public void generateToken() {
+        AuthRequest authRequest = new AuthRequest(USER_NAME, PASSWORD);
         RestAssured.baseURI = BASE_URL;
         RequestSpecification request = RestAssured.given();
-        request.header("content-type", "application/json");
-        Response response = request.body("{ \"userName\":\"" + USER_NAME + "\", \"password\":\"" + PASSWORD + "\"}")
-                .post("/Account/v1/generatetoken");
+        Response response = request
+                .header("Content-Type", "application/json")
+                .body(authRequest)
+                .post("/Account/v1/GenerateToken");
         jsonString = response.asString();
         token = JsonPath.from(jsonString).get("token");
-        System.out.println("Token Value is: " + token);
+        System.out.println("Token is: -  " + token);
         Assert.assertEquals(response.getStatusCode(), 200);
     }
 
@@ -53,8 +62,9 @@ public class E2E_API_Tests {
     public void getListOfBooks() {
         RestAssured.baseURI = BASE_URL;
         RequestSpecification request = RestAssured.given();
-        request.header("content-type", "application/json");
-        Response response = request.get("/bookstore/v1/books");
+        Response response = request
+                .header("content-type", "application/json")
+                .get("/bookstore/v1/books");
         Assert.assertEquals(response.getStatusCode(), 200);
         jsonString = response.asString();
         JsonPath jsonPath = new JsonPath(jsonString);
@@ -110,23 +120,30 @@ public class E2E_API_Tests {
 
     @Test(priority = 4)
     public void addBookIList() {
+        List<ISBN> isbn = new ArrayList<>();
+        isbn.add(new ISBN(isbnNumber));
+        AddBooksRequest addBookRequest = new AddBooksRequest(USER_ID, isbn);
         RestAssured.baseURI = BASE_URL;
         RequestSpecification request = RestAssured.given();
-        Response response = request.header("Authorization", "Bearer " + token)
+        Response response = request
+                .log().all()
+                .header("Authorization", "Bearer " + token)
                 .header("Content-Type", "application/json")
-                .body("{ \"userId\": \"" + USER_ID + "\", " +
-                        "\"collectionOfIsbns\": [ { \"isbn\": \"" + isbnNumber + "\" } ]}")
+                .body(addBookRequest)
                 .post("/BookStore/v1/Books");
         Assert.assertEquals(response.getStatusCode(), 201);
     }
 
     @Test(priority = 5)
     public void deleteBookFromUserList() {
+        RemoveBookRequest deleteBook = new RemoveBookRequest(USER_ID, isbnNumber);
         RestAssured.baseURI = BASE_URL;
         RequestSpecification request = RestAssured.given();
-        Response response = request.header("Authorization", "Bearer " + token)
+        Response response = request
+                .log().all()
+                .header("Authorization", "Bearer " + token)
                 .header("Content-Type", "application/json")
-                .body("{ \"isbn\": \"" + isbnNumber + "\", \"userId\": \"" + USER_ID + "\"}")
+                .body(deleteBook)
                 .delete("/BookStore/v1/Book");
         Assert.assertEquals(response.getStatusCode(), 204);
 
