@@ -4,11 +4,12 @@ import apiEngine.model.requests.AddBooksRequest;
 import apiEngine.model.requests.AuthRequest;
 import apiEngine.model.requests.ISBN;
 import apiEngine.model.requests.RemoveBookRequest;
+import apiEngine.model.response.BookListResponse;
+import apiEngine.model.response.TokenResponse;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import io.restassured.RestAssured;
-import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 import org.testng.Assert;
@@ -29,8 +30,9 @@ public class BookStoreAPITest {
      */
     private static String isbnNumber;
     private static String jsonString;
-    private static String token;
+    //private static String token;
     private static Response response;
+    private TokenResponse tokenResponse;
 
     @Given("I am an authorized user")
     public void i_am_an_authorized_user() {
@@ -41,9 +43,11 @@ public class BookStoreAPITest {
                 .header("Content-Type", "application/json")
                 .body(authRequest)
                 .post("/Account/v1/GenerateToken");
-        jsonString = response.asString();
-        token = JsonPath.from(jsonString).get("token");
-        System.out.println("Token is: -  " + token);
+       /* jsonString = response.asString();
+        token = JsonPath.from(jsonString).get("token");*/
+        tokenResponse = response.getBody().as(TokenResponse.class);
+
+        System.out.println("Token is: -  " + tokenResponse.token);
         Assert.assertEquals(response.getStatusCode(), 200);
     }
 
@@ -55,29 +59,40 @@ public class BookStoreAPITest {
                 .header("content-type", "application/json")
                 .get("/bookstore/v1/books");
         Assert.assertEquals(response.getStatusCode(), 200);
-        jsonString = response.asString();
-        JsonPath jsonPath = new JsonPath(jsonString);
+        BookListResponse listOfBooks = response.getBody().as(BookListResponse.class);
+
+
+   /*     jsonString = response.asString();
+        JsonPath jsonPath = new JsonPath(jsonString);*/
 
         // Get total number of books.
-        int getNumberOfBooks = jsonPath.getList("books").size();
-        Assert.assertTrue(getNumberOfBooks > 0);
+        // int getNumberOfBooks = jsonPath.getList("books").size();
+
+        Assert.assertTrue(listOfBooks.getBooks().size() > 0);
 
         //Get isbn of the first book
-        isbnNumber = jsonPath.getString("books[0].isbn");
+        //isbnNumber = jsonPath.getString("books[0].isbn");
+        isbnNumber = listOfBooks.getBooks().get(0).getIsbn();
         Assert.assertEquals(isbnNumber, "9781449325862");
         System.out.println("isbn number is: " + isbnNumber);
 
         //Get second Book title
-        String secondBookTitle = jsonPath.getString("books[1].title");
-        Assert.assertEquals(secondBookTitle, "Learning JavaScript Design Patterns");
+        // String secondBookTitle = jsonPath.getString("books[1].title");
+        Assert.assertEquals(listOfBooks.getBooks().get(1).getTitle(), "Learning JavaScript Design Patterns");
 
         //Get the author of all books:
-        List<String> listOfAuthors = jsonPath.getList("books.author");
-        System.out.println("List of the author of all books:: " + listOfAuthors);
+        //List<String> listOfAuthors = jsonPath.getList("books.author");
+        System.out.println("List of the author of all books:: " + listOfBooks.getBooks().get(2).getAuthor());
 
         //Get the title of the book with ISBN '9781449325862':
-        String bookTitle = jsonPath.getString("books.find{it.isbn == '9781449325862'}.title");
-        System.out.println("Book Title: " + bookTitle);
+        //String bookTitle = jsonPath.getString("books.find{it.isbn == '9781449325862'}.title");
+        for (int i = 0; i < listOfBooks.getBooks().size(); i++) {
+            if (listOfBooks.getBooks().get(i).getIsbn().equalsIgnoreCase("9781449325862") == true) {
+                String bookTitle = listOfBooks.getBooks().get(0).getTitle();
+                System.out.println("Book Title: " + bookTitle);
+            }
+        }
+
     }
 
     @When("User add a book to reading link")
@@ -89,7 +104,7 @@ public class BookStoreAPITest {
         RequestSpecification request = RestAssured.given();
         response = request
                 //.log().all()
-                .header("Authorization", "Bearer " + token)
+                .header("Authorization", "Bearer " + tokenResponse.token)
                 .header("Content-Type", "application/json")
                 .body(addBookRequest)
                 .post("/BookStore/v1/Books");
@@ -107,7 +122,7 @@ public class BookStoreAPITest {
         RequestSpecification request = RestAssured.given();
         response = request
                 // .log().all()
-                .header("Authorization", "Bearer " + token)
+                .header("Authorization", "Bearer " + tokenResponse.token)
                 .header("Content-Type", "application/json")
                 .body(deleteBook)
                 .delete("/BookStore/v1/Book");
